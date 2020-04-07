@@ -33,7 +33,7 @@ app.get('/spotify_access_token', async (req, res, next) => {
   return res.send(json);
 });
 
-app.listen(port, function(error) {
+app.listen(port, function (error) {
   if (error) {
     console.error(error);
   } else {
