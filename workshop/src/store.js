@@ -5,7 +5,7 @@ export default function configureStore(initialState) {
     const store = createStore(
         reducer,
         initialState,
-        window._REDUX_DEVTOOLS_EXTENSION_ && window._REDUX_DEVTOOLS_EXTENSION_()
+        window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__()
     );
     return store;
 }
