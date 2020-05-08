@@ -1,114 +1,192 @@
-import React from 'react';
+import React from 'react'
+import styled from 'styled-components'
 import { useSelector, useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
-import styled from 'styled-components';
+import { fetchArtistProfile } from '../../helpers/api.helpers';
+import { receiveAllArtistInfo, requestAllArtistInfo, receiveAllArtistInfoError } from '../../actions'
+import { getArtistArray, getArtist } from '../../reducers/artists-reducer'
+import ClipLoader from 'react-spinners/ClipLoader'
 
-import {
-  requestAllArtistInfo,
-  receiveArtistProfile,
-  receiveRelatedArtists,
-  receiveTopTracks,
-  finishReceivingAllArtistInfo,
-  receiveArtistError,
-} from '../../actions';
-import { getArtist, getArtistStatus } from '../../reducers/artists.reducer';
-import { getAccessToken } from '../../reducers/auth.reducer';
-import {
-  fetchRelatedArtists,
-  fetchArtistProfile,
-  fetchTopTracks,
-} from '../../helpers/api.helpers';
 
-import FullScreenSpinner from '../FullScreenSpinner';
 
-import Header from './Header';
-import TopTracks from './TopTracks';
-import GenreTags from './GenreTags';
-import RelatedArtists from './RelatedArtists';
+const ArtistRoute = () => {
+    const dispatch = useDispatch();
+    const accessToken = useSelector((state) => state.auth.token);
+    const { artistId } = useParams();
+    let artistName = "";
+    let artistFollowers;
+    let artistGenresArray;
+    let artistImagesArray;
 
-const ArtistDetailsContainer = () => {
-  const artist = useSelector(getArtist);
-  const artistStatus = useSelector(getArtistStatus);
+    const state = useSelector(getArtist)
 
-  useSpotifyData();
+    if (state.status === "RECEIVED") {
+        artistName = state.currentArtist.profile[0].name;
+        artistFollowers = state.currentArtist.profile[0].followers.total;
+        artistGenresArray = state.currentArtist.profile[0].genres;
+        artistImagesArray = state.currentArtist.profile[0].images;
 
-  if (artistStatus === 'loading') {
-    return <FullScreenSpinner />;
-  }
-
-  if (!artist) {
-    // SOmething's gone wrong!
-    return 'Error';
-  }
-
-  return (
-    <>
-      <Section>
-        <Header
-          photoSrc={artist.profile.images[1].url}
-          name={artist.profile.name}
-          followerCount={artist.profile.followers.total}
-        />
-      </Section>
-      <Section>
-        {artist.topTracks && <TopTracks tracks={artist.topTracks} />}
-      </Section>
-      <Section>
-        {artist.profile.genres && <GenreTags genres={artist.profile.genres} />}
-      </Section>
-      <Section>
-        {artist.relatedArtists && (
-          <RelatedArtists artists={artist.relatedArtists} />
-        )}
-      </Section>
-    </>
-  );
-};
-
-const useSpotifyData = () => {
-  const { artistId } = useParams();
-
-  const dispatch = useDispatch();
-
-  const accessToken = useSelector(getAccessToken);
-
-  React.useEffect(() => {
-    if (!accessToken) {
-      return;
     }
 
-    dispatch(requestAllArtistInfo());
+    const handleFollowers = (num) => {
+        if (num.length === 4) {
+            return (num[0] + "k")
+        } else if (num.length === 5) {
+            return (num[0] + num[1] + "k")
+        } else if (num.length === 6) {
+            return (num[0] + num[1] + num[2] + "k")
+        }
 
-    const artistProfilePromise = fetchArtistProfile(accessToken, artistId).then(
-      json => {
-        dispatch(receiveArtistProfile(json));
-      }
-    );
+    }
 
-    const relatedArtistsPromise = fetchRelatedArtists(
-      accessToken,
-      artistId
-    ).then(json => {
-      dispatch(receiveRelatedArtists(json));
-    });
 
-    const topTracksPromise = fetchTopTracks(accessToken, artistId).then(
-      json => {
-        dispatch(receiveTopTracks(json));
-      }
-    );
 
-    Promise.all([artistProfilePromise, relatedArtistsPromise, topTracksPromise])
-      .then(() => dispatch(finishReceivingAllArtistInfo()))
-      .catch(err => {
-        console.error(err);
-        dispatch(receiveArtistError(err));
-      });
-  }, [accessToken, artistId]);
+
+    // const actionInfo = useSelector(receiveAllArtistInfo)
+
+    function fetchArtistProfile(token, artistId) {
+        dispatch(requestAllArtistInfo())
+
+        const options = {
+            headers: { Authorization: `Bearer ${token}` },
+        };
+
+        const url = `https://api.spotify.com/v1/artists/${artistId}`;
+
+        fetch(url, options)
+            .then((response) => {
+                return response.json()
+            })
+            .then(json => dispatch(receiveAllArtistInfo(json)))
+
+            .catch(err => {
+                console.log(err);
+                dispatch(receiveAllArtistInfoError())
+
+            })
+
+
+        // return fetch(url, options).then((response) => response.json());
+    }
+
+    // THIS GETS THE ACCESS TOKEN, IF SUCCESSFUL IT FETCHES ARTIST 
+    React.useEffect(() => {
+        if (!accessToken) {
+            return;
+        }
+
+        fetchArtistProfile(accessToken, artistId)
+
+    }, [accessToken, artistId])
+
+
+
+
+
+    return (
+
+        (state.status !== "RECEIVED")
+            ?
+            (
+                <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", justifyContent: "center" }}>
+                    <ClipLoader
+                        color={"#FF4FD8"}
+                        size={60}
+                    />
+                    <p>If it's not loading, try <span style={{ color: "#FF4FD8", textDecoration: "underline", cursor: "pointer" }} onClick={() => window.location.reload()}>refreshing</span>  the page. </p>
+                </div>
+            )
+            :
+            (
+                <StyledContainer>
+                    <AvatarContainer>
+                        <img src={artistImagesArray[1].url} />
+                        <h1>{artistName}</h1>
+                        <p><span>{handleFollowers((artistFollowers).toString())} </span>Followers</p>
+                    </AvatarContainer>
+
+
+                    <TagContainer>
+                        <h2>tags</h2>
+                        <Tags>
+                            <button>{artistGenresArray[0]}</button>
+                            <button>{artistGenresArray[1]}</button>
+
+                        </Tags>
+
+                    </TagContainer>
+
+
+
+                </StyledContainer>
+
+            )
+    )
+
 };
 
-const Section = styled.section`
-  margin-bottom: 64px;
-`;
+const StyledContainer = styled.div`
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-around;
+    width: 375px; 
+    height: 100%; 
+    margin: 0 auto;
+    margin-top: 50px; 
+    text-align: center;
+    align-items: center;
+ 
 
-export default ArtistDetailsContainer;
+`
+
+const AvatarContainer = styled.div`
+    width: 268px; 
+    height: 215px; 
+    position: relative; 
+    img {
+        width: 175px; 
+        border-radius: 50%; 
+    }
+    h1{
+        position: absolute; 
+        bottom: 5px; 
+        font-weight: 700; 
+        font-size: 1.8rem;
+    }
+    p {
+        font-weight: 600; 
+    }
+    span {
+        color: #FF4FD8; 
+    }
+
+`
+const TagContainer = styled.div`
+    width: 253px; 
+    margin-top: 45px; 
+    h2{
+        font-weight: 600; 
+    }
+`
+
+const Tags = styled.div`
+    display: flex; 
+    width: 100%; 
+    justify-content: space-evenly;
+    
+    
+    button {
+        background: #4B4B4B;
+        color: white; 
+        font-size: .9rem; 
+        font-weight: 600; 
+        
+        border: none;  
+        border-radius: 5px; 
+        padding: 8px 20px; 
+        
+
+    }
+`
+
+export default ArtistRoute;
